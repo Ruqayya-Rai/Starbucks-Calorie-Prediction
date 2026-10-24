@@ -37,27 +37,73 @@ with tab1:
 with tab2:
     st.dataframe(least, hide_index=True, width="stretch", column_config=calorie_bar)
 
+# Real Starbucks drinks from the dataset (Total Fat, Sugars, Protein, actual calories)
+examples = {
+    "🟢 Brewed Coffee": [0.1, 0.0, 1.0, "Brewed Coffee (Grande)", 5],
+    "🟡 Caffè Latte": [7.0, 17.0, 12.0, "Caffè Latte (Grande, 2% Milk)", 190],
+    "🔴 White Chocolate Mocha": [15.0, 74.0, 19.0, "White Chocolate Mocha (Venti, 2% Milk)", 510],
+}
+
+# Default input values
+if "fat" not in st.session_state:
+    st.session_state.fat = 3.0
+    st.session_state.sugars = 30.0
+    st.session_state.protein = 7.0
+    st.session_state.example = None
+    st.session_state.show_result = False
+
+
+def use_example(name):
+    fat, sugar, protein, _, _ = examples[name]
+    st.session_state.fat = fat
+    st.session_state.sugars = sugar
+    st.session_state.protein = protein
+    st.session_state.example = name
+    st.session_state.show_result = True
+
+
+def predict_clicked():
+    st.session_state.example = None
+    st.session_state.show_result = True
+
+
+def values_changed():
+    st.session_state.example = None
+    st.session_state.show_result = False
+
+
+# Example buttons
+st.subheader("☕ Try an Example")
+st.caption("Click a real Starbucks drink — its values fill in automatically and the model predicts its calorie level.")
+
+cols = st.columns(len(examples))
+for col, name in zip(cols, examples):
+    with col:
+        st.button(name, on_click=use_example, args=(name,), width="stretch")
+
 # User inputs
 st.subheader("🧮 Enter Drink Nutrition Values")
 
-total_fat = st.number_input(
-    "Total Fat (g)", min_value=0.0, max_value=20.0, value=3.0
+st.number_input(
+    "Total Fat (g)", min_value=0.0, max_value=20.0, key="fat", on_change=values_changed
 )
 
-sugars = st.number_input(
-    "Sugars (g)", min_value=0.0, max_value=90.0, value=30.0
+st.number_input(
+    "Sugars (g)", min_value=0.0, max_value=90.0, key="sugars", on_change=values_changed
 )
 
-protein = st.number_input(
-    "Protein (g)", min_value=0.0, max_value=20.0, value=7.0
+st.number_input(
+    "Protein (g)", min_value=0.0, max_value=20.0, key="protein", on_change=values_changed
 )
+
+st.button("Predict Calorie Level", on_click=predict_clicked)
 
 # Predict calorie level
-if st.button("Predict Calorie Level"):
+if st.session_state.show_result:
     data = pd.DataFrame([[
-        total_fat,
-        sugars,
-        protein
+        st.session_state.fat,
+        st.session_state.sugars,
+        st.session_state.protein
     ]], columns=features)
 
     level = model.predict(data)[0]
@@ -68,5 +114,9 @@ if st.button("Predict Calorie Level"):
         st.warning("Predicted Calorie Level: MEDIUM (151 – 250 kcal) 🟡")
     else:
         st.error("Predicted Calorie Level: HIGH (more than 250 kcal) 🔴")
+
+    if st.session_state.example:
+        _, _, _, drink, calories = examples[st.session_state.example]
+        st.info(f"Example drink: **{drink}** — actual calories: **{calories} kcal**")
 
 st.caption("Calorie levels: Low = 0–150 kcal · Medium = 151–250 kcal · High = more than 250 kcal")
